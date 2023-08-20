@@ -7,6 +7,8 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Markup;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\user\RoleStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -17,6 +19,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @package Drupal\access_by_field_value\Form
  */
 class AbfFieldsMappingForm extends ConfigFormBase {
+
+  use StringTranslationTrait;
+
   /**
    * The role storage.
    *
@@ -69,6 +74,15 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    * @return array
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
+
+    $user_fields = $this->getFields('user', 'user');
+    if (empty($user_fields)) {
+      $warning = $this->t('No taxonomy reference fields found in User entity.');
+      return [
+        '#type' => 'markup',
+        '#markup' => Markup::create("<div class='messages messages--warning'>{$warning}</div>"),
+      ];
+    }
     $config = $this->config('abf_fields_mapping.settings');
     // Get content type from the query parameter.
     $content_type = \Drupal::request()->query->get('type');
@@ -84,6 +98,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       '#type' => 'checkboxes',
       '#title' => $this->t('Access level'),
       '#default_value' => $config->get('access_level'),
+      '#required' => TRUE,
       '#options' => [
         'create' => 'Create',
         'view' => 'View',
@@ -95,12 +110,14 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       '#type' => 'select',
       '#title' => $this->t(ucfirst($content_type . ' Node Fields')),
       '#default_value' => $config->get('content_fields'),
+      '#required' => TRUE,
       '#options' => $this->getFields('node', $content_type),
     ];
     $form['user_fields'] = [
       '#type' => 'select',
       '#title' => $this->t(ucfirst('User Account Fields')),
       '#default_value' => $config->get('user_fields'),
+      '#required' => TRUE,
       '#options' => $this->getFields('user', 'user'),
     ];
 

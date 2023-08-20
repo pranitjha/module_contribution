@@ -24,6 +24,12 @@ function access_by_field_value_node_access(NodeInterface $node, $op, AccountInte
   // Get bypassed roles and skip the access mapping for those roles.
   $bypassed_roles = \Drupal::config('abf_bypass_roles.settings')
     ->get('bypassed_roles');
+
+  if (empty($bypassed_roles)) {
+    // Default bypass checks for administrator role.
+    $bypassed_roles['administrator'] = 'administrator';
+  }
+
   foreach (array_filter($bypassed_roles, 'ucfirst') as $rid => $role) {
     if (in_array($rid, $roles)) {
       return;
@@ -48,7 +54,19 @@ function access_by_field_value_node_access(NodeInterface $node, $op, AccountInte
     // If user didn't have any access tags, skip.
     return;
   }
+
   switch ($op) {
+    case 'view':
+    case 'view all revisions':
+      $node_access = array_column($node_access, 'target_id');
+      $user_access = array_column($user_access, 'target_id');
+      //Check if user is assigned to anyone of the access tag node has
+      $access = array_intersect($user_access, $node_access);
+      if (!empty($access)) {
+        return AccessResult::allowed();
+      }
+      return AccessResult::forbidden();
+
     case 'update':
       // Check user has permission for edit node type and user and node both
       // have tag terms.
