@@ -1,0 +1,24 @@
+access_by_field.admin_config_abf:
+  title: 'Access By Fields'
+  description: 'Configure the Access by Fields settings'
+  parent: system.admin_config_content
+  route_name: access_by_field.admin_config_abf
+  weight: 100
+access_by_field.content_configuration:
+  title: 'Content Type Fields Mapping'
+  route_name: access_by_field.content_configuration
+  parent: access_by_field.admin_config_abf
+  description: 'Configure fields mapping for each content types.'
+  weight: 70
+access_by_field.mapping_dashboard:
+  title: 'Mapping Dashboard'
+  route_name: access_by_field.mapping_dashboard
+  parent: access_by_field.admin_config_abf
+  description: 'Find list of all mapped fields.'
+  weight: 80
+access_by_field.bypass_roles:
+  title: 'Manage Access by Role'
+  route_name: access_by_field.bypass_roles
+  parent: access_by_field.admin_config_abf
+  description: 'Find list of all mapped fields.'
+  weight: 90

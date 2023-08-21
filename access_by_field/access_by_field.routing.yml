@@ -1,0 +1,44 @@
+access_by_field.admin_config_abf:
+  path: '/admin/config/access-by-field'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Access By Fields'
+  requirements:
+    _permission: 'access administration pages'
+
+access_by_field.content_configuration:
+  path: '/admin/config/access-by-field/content-configuration'
+  defaults:
+    _form: '\Drupal\access_by_field\Form\AbfContentConfigForm'
+    _title: 'Fields Mappings'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE
+
+access_by_field.add_field_mapping:
+  path: '/admin/config/access-by-field/fields-mapping'
+  defaults:
+    _form: '\Drupal\access_by_field\Form\AbfFieldsMappingForm'
+    _title: 'Add Fields Mappings'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE
+
+access_by_field.bypass_roles:
+  path: '/admin/config/access-by-field/bypass-role'
+  defaults:
+    _form: '\Drupal\access_by_field\Form\AbfBypassRoleForm'
+    _title: 'Bypass Roles'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE
+
+access_by_field.mapping_dashboard:
+  path: '/admin/config/access-by-field/mapping-list'
+  defaults:
+    _controller: '\Drupal\access_by_field\Controller\MappingDashboardController::getMappingList'
+  requirements:
+    _permission: 'access administration pages'
