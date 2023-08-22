@@ -1,6 +1,0 @@
-access_by_field_value.mapping_dashboard:
-  route_name: access_by_field_value.mapping_dashboard
-  title: 'Go to Mapping Dashboard'
-  appears_on:
-    - access_by_field_value.content_configuration
-    - access_by_field_value.add_field_mapping

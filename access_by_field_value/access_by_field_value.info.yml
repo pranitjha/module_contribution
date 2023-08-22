@@ -1,6 +1,0 @@
-name: Access Entity by Field Value
-description: 'This module access to entities based on field value.'
-type: module
-package: 'Others'
-core_version_requirement: '^9 || ^10'
-
