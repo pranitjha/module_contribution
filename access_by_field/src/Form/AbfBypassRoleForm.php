@@ -23,7 +23,7 @@ class AbfBypassRoleForm extends ConfigFormBase {
   protected $roleStorage;
 
   /**
-   * AdminToolbarToolsSettingsForm constructor.
+   * AbfBypassRoleForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The factory for configuration objects.

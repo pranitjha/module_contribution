@@ -4,3 +4,9 @@ access_by_field.mapping_dashboard:
   appears_on:
     - access_by_field.content_configuration
     - access_by_field.add_field_mapping
+access_by_field.content_configuration:
+  route_name: access_by_field.content_configuration
+  title: 'Go to Fields Mapping'
+  appears_on:
+    - access_by_field.mapping_dashboard
+    - access_by_field.add_field_mapping

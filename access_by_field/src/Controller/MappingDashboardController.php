@@ -7,12 +7,13 @@
 
 namespace Drupal\access_by_field\Controller;
 
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Render\Markup;
 use Drupal\Core\Url;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Controller for fields mapping dashboard.
@@ -23,51 +24,79 @@ class MappingDashboardController extends ControllerBase {
 
   use StringTranslationTrait;
 
+  /**
+   * The entity type manager.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   */
+  protected $entityTypeManager;
+
+  /**
+   * AbfFieldsMappingForm constructor.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   */
+  public function __construct(EntityTypeManagerInterface $entity_type_manager) {
+    $this->entityTypeManager = $entity_type_manager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('entity_type.manager'),
+    );
+  }
+
+  /**
+   * Get the list of all fields mappings.
+   *
+   * @return array
+   */
   public function getMappingList() {
-    global $base_url;
-    $mapping_data = $this->config('abf_fields_mapping.settings');
-    $rows = [];
-    $edit = Html::escape($base_url . '/admin/config/access-by-field/fields-mapping?type=' . $mapping_data->get('content_type'));
-    $access_level_data = array_filter($mapping_data->get('access_level'), 'ucfirst');
-
-    if (empty($access_level_data)) {
-
-      $url = Url::fromUri('base:/admin/config/access-by-field/content-configuration');
-      $link = Link::fromTextAndUrl($this->t('Content Type Fields Mapping'), $url);
-
-      $warning = $this->t('No mappings found for any content type. Visit @link page to override permissions.',
-        ['@link' => $link->toString()]
-      );
-      return [
-        '#type' => 'markup',
-        '#markup' => Markup::create("<div class='messages messages--warning'>{$warning}</div>"),
-      ];
-    }
-    foreach ($access_level_data as $access) {
-      $access_level[] = $access;
-    }
-    $row = [
-      'content_type' => $mapping_data->get('content_type'),
-      'fields_mapped' => $mapping_data->get('user_fields'),
-      'access_level' => implode(", ", $access_level),
-      'operation' => Markup::create('<div><a href="' . $edit . '">' . $this->t('Edit') . '</a></div>'),
-    ];
-    $rows[] = $row;
-
+    // We are preparing a table to display configured data.
+    // Table header.
     $header = [
       'content_type' => $this->t('Content Type'),
-      'fields_mapped' => $this->t('User Field Mapped'),
+      'content_field' => $this->t('Content Field'),
+      'user_field' => $this->t('User Field'),
       'access_level' => $this->t('Access Level'),
       'operation' => $this->t('Operation'),
     ];
 
-    // Return data in table format.
+    // Table rows.
+    // Get raw data from mapping configuration.
+    $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
+    foreach ($mapping_data as $content_type => $mapping) {
+      // Get node type label.
+      $content_type_label = $this->entityTypeManager->getStorage('node_type')->load($content_type)->label();
+      // Field mapping URL for edit link.
+      $edit_link = Url::fromRoute('access_by_field.add_field_mapping', ['type' => $content_type], ['absolute' => TRUE]);
+      // Get permission levels set in the configuration.
+      $access_level_data = array_filter($mapping['access_level'], 'ucfirst');
+      // Table rows to render content type, field mapped, access level & edit link.
+      $rows[] = [
+        'content_type' => $content_type_label,
+        'content_field' => $mapping['user_field'],
+        'user_field' => $mapping['content_field'],
+        'access_level' => implode(", ", array_keys(array_flip($access_level_data))),
+        'operation' => Markup::create('<div><a href="' . $edit_link->toString() . '">' . $this->t('Edit') . '</a></div>'),
+      ];
+    }
+
+    // If no mappings exist, put a message with mapping config link.
+    $url = Url::fromUri('base:/admin/config/access-by-field/content-configuration');
+    $link = Link::fromTextAndUrl($this->t('Content Type Fields Mapping'), $url);
+
+    // Return the final data set.
     return [
       '#type' => 'table',
       '#header' => $header,
       '#rows' => $rows,
-      'contexts' => ['user'],
+      '#empty' => $this->t('No mappings found for any content type. Visit @link page to create one.',
+        ['@link' => $link->toString()]
+      ),
     ];
   }
-
 }

@@ -9,8 +9,8 @@ access_by_field.admin_config_abf:
 access_by_field.content_configuration:
   path: '/admin/config/access-by-field/content-configuration'
   defaults:
-    _form: '\Drupal\access_by_field\Form\AbfContentConfigForm'
-    _title: 'Fields Mappings'
+    _controller: '\Drupal\access_by_field\Controller\ContentConfigController::contentMappingList'
+    _title: 'Content Mapping Configuration'
   requirements:
     _permission: 'access administration pages'
   options:
@@ -40,5 +40,6 @@ access_by_field.mapping_dashboard:
   path: '/admin/config/access-by-field/mapping-list'
   defaults:
     _controller: '\Drupal\access_by_field\Controller\MappingDashboardController::getMappingList'
+    _title: 'Mapping Dashboard'
   requirements:
     _permission: 'access administration pages'
