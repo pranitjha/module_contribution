@@ -8,7 +8,6 @@
 use Drupal\node\NodeInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Access\AccessResult;
-use Drupal\user\Entity\User;
 
 /**
  * Implements hook_node_access().
@@ -18,7 +17,7 @@ function access_by_field_node_access(NodeInterface $node, $op, AccountInterface 
   $mapping_config = \Drupal::config('abf_fields_mapping.settings');
   $field_name = $mapping_config->get('user_fields');
 
-  $user = User::load($account->id());
+  $user = \Drupal::entityTypeManager()->getStorage('user') ::load($account->id());
   $roles = $account->getRoles(TRUE);
 
   // Get bypassed roles and skip the access mapping for those roles.
