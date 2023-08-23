@@ -1,0 +1,109 @@
+<?php
+
+/**
+ * @file
+ * Hooks and functions related to access_by_field.module.
+ */
+
+use Drupal\node\NodeInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Access\AccessResult;
+
+/**
+ * Implements hook_node_access().
+ */
+function access_by_field_node_access(NodeInterface $node, $op, AccountInterface $account) {
+  // Define the field name for which mapping will be done.
+  $mapping_config = \Drupal::config('abf_fields_mapping.settings');
+  $field_name = $mapping_config->get('user_fields');
+
+  $user = \Drupal::entityTypeManager()->getStorage('user') ::load($account->id());
+  $roles = $account->getRoles(TRUE);
+
+  // Get bypassed roles and skip the access mapping for those roles.
+  $bypassed_roles = \Drupal::config('abf_bypass_roles.settings')
+    ->get('bypassed_roles');
+  if (empty($bypassed_roles)) {
+    // Default bypass checks for administrator role.
+    $bypassed_roles['administrator'] = 'administrator';
+  }
+
+  foreach (array_filter($bypassed_roles, 'ucfirst') as $rid => $role) {
+    if (in_array($rid, $roles)) {
+      return;
+    }
+  }
+
+  // Get node bundle.
+  $type = $node->bundle();
+
+  //check if node has field access tag.
+  if ($node->hasField($field_name)) {
+    // Get tag terms node is tagged with.
+    $node_access = $node->$field_name->getValue();
+  }
+  else {
+    return;
+  }
+
+  // Get user tag terms.
+  $user_access = $user->$field_name->getValue();
+  if (empty($user_access)) {
+    // If user didn't have any access tags, skip.
+    return;
+  }
+  switch ($op) {
+    case 'view':
+    case 'view all revisions':
+      $node_access = array_column($node_access, 'target_id');
+      $user_access = array_column($user_access, 'target_id');
+      //Check if user is assigned to anyone of the access tag node has
+      $access = array_intersect($user_access, $node_access);
+      if (!empty($access)) {
+        return AccessResult::allowed();
+      }
+      return AccessResult::forbidden();
+
+    case 'update':
+      // Check user has permission for edit node type and user and node both
+      // have tag terms.
+      if (($account
+            ->hasPermission('edit any ' . $type . ' content') || $account
+            ->hasPermission('edit own ' . $type . ' content') && $account
+            ->id() == $node->getOwnerId()) &&
+        !empty($node_access) &&
+        !empty($user_access)
+      ) {
+        $node_access = array_column($node_access, 'target_id');
+        $user_access = array_column($user_access, 'target_id');
+
+        // Check if user is assigned to anyone of the access tag node has.
+        $access = array_intersect($user_access, $node_access);
+        if (is_array($access) && !empty($access)) {
+          return AccessResult::allowed();
+        }
+      }
+      return AccessResult::forbidden();
+
+    case 'delete':
+      $allowed = FALSE;
+      // Check user has permission for delete node type and user and node
+      // both have tag terms.
+      if (($account
+            ->hasPermission('delete any ' . $type . ' content') || $account
+            ->hasPermission('delete own ' . $type . ' content') && $account
+            ->id() == $node->getOwnerId()) &&
+        !empty($node_access) &&
+        !empty($user_access)
+      ) {
+        $node_access = array_column($node_access, 'target_id');
+        $user_access = array_column($user_access, 'target_id');
+        // Check if user is assigned to anyone of the access tags node has.
+        $access = array_intersect($user_access, $node_access);
+        if (is_array($access) && !empty($access)) {
+          return AccessResult::allowed();
+        }
+      }
+      return AccessResult::forbidden();
+  }
+}
