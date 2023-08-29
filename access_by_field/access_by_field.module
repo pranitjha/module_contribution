@@ -5,7 +5,7 @@
  * Hooks and functions related to access_by_field.module.
  */
 
-use Drupal\node\NodeInterface;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Routing\RouteMatchInterface;
@@ -13,7 +13,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
 /**
  * Implements hook_help().
  */
-function access_by_field_help($route_name, $route_match) {
+function access_by_field_help($route_name, RouteMatchInterface $route_match) {
   switch ($route_name) {
     case 'help.page.access_by_field':
       $output = '<h3>' . t('About') . '</h3>';
@@ -34,14 +34,47 @@ function access_by_field_help($route_name, $route_match) {
 }
 
 /**
- * Implements hook_node_access().
+ * Implements hook_entity_access().
  */
-function access_by_field_node_access(NodeInterface $node, $op, AccountInterface $account) {
+function access_by_field_entity_access(EntityInterface $entity, $op, AccountInterface $account) {
+  $entity_types = [
+    'node',
+    'taxonomy_term'
+  ];
+  if (!in_array($entity->getEntityTypeId(), $entity_types)) {
+    return;
+  }
+  // Validate access for entity.
+  return _access_by_field_override_permissions($entity, $op, $account);
+}
+
+/**
+ * Validate access for entity.
+ */
+function _access_by_field_override_permissions(EntityInterface $entity, $op, AccountInterface $account) {
   // Define the field name for which mapping will be done.
   $mapping_config = \Drupal::config('abf_fields_mapping.settings');
-  $field_name = $mapping_config->get('user_fields');
-
-  $user = \Drupal::entityTypeManager()->getStorage('user') ::load($account->id());
+  $type = $entity->bundle();
+  $config = $mapping_config->getRawData();
+  // Check if field mapping configs are set for entity type.
+  if (!isset($config[$type])) {
+    return;
+  }
+  // Check if operation alter is required for entity.
+  if (!in_array($op, array_filter($config[$type]['access_level']))) {
+    return;
+  }
+  $field_name = $config[$type]['content_field'];
+  // Load user entity.
+  $user = \Drupal::entityTypeManager()->getStorage('user')->load($account->id());
+  // Get user tag terms.
+  $user_access = $user->{$field_name}->getValue();
+  if (empty($user_access)) {
+    // If user doesn't have any access tags, skip.
+    return;
+  }
+  $user_access = array_column($user_access, 'target_id');
+  // Get user roles.
   $roles = $account->getRoles(TRUE);
 
   // Get bypassed roles and skip the access mapping for those roles.
@@ -57,77 +90,68 @@ function access_by_field_node_access(NodeInterface $node, $op, AccountInterface 
       return;
     }
   }
-
-  // Get node bundle.
-  $type = $node->bundle();
-
-  //check if node has field access tag.
-  if ($node->hasField($field_name)) {
-    // Get tag terms node is tagged with.
-    $node_access = $node->$field_name->getValue();
-  }
-  else {
+  // Check if node has field access tag.
+  if (!$entity->hasField($field_name)) {
     return;
   }
-
-  // Get user tag terms.
-  $user_access = $user->$field_name->getValue();
-  if (empty($user_access)) {
-    // If user didn't have any access tags, skip.
+  // Get tagged fields values.
+  $entity_access = $entity->{$field_name}->getValue();
+  if (empty($entity_access)) {
+    // If entity doesn't have any access tags, skip.
     return;
   }
   switch ($op) {
     case 'view':
     case 'view all revisions':
-      $node_access = array_column($node_access, 'target_id');
-      $user_access = array_column($user_access, 'target_id');
+      $entity_access = array_column($entity_access, 'target_id');
       //Check if user is assigned to anyone of the access tag node has
-      $access = array_intersect($user_access, $node_access);
+      $access = array_intersect($user_access, $entity_access);
       if (!empty($access)) {
         return AccessResult::allowed();
       }
       return AccessResult::forbidden();
 
     case 'update':
-      // Check user has permission for edit node type and user and node both
-      // have tag terms.
-      if (($account
-            ->hasPermission('edit any ' . $type . ' content') || $account
-            ->hasPermission('edit own ' . $type . ' content') && $account
-            ->id() == $node->getOwnerId()) &&
-        !empty($node_access) &&
-        !empty($user_access)
-      ) {
-        $node_access = array_column($node_access, 'target_id');
-        $user_access = array_column($user_access, 'target_id');
-
-        // Check if user is assigned to anyone of the access tag node has.
-        $access = array_intersect($user_access, $node_access);
-        if (is_array($access) && !empty($access)) {
-          return AccessResult::allowed();
-        }
-      }
-      return AccessResult::forbidden();
-
+      // Check user has tagged terms and edit entity permissions.
+      return _access_by_field_has_permissions($account, $entity, 'edit', $user_access, $field_name);
     case 'delete':
-      $allowed = FALSE;
-      // Check user has permission for delete node type and user and node
-      // both have tag terms.
-      if (($account
-            ->hasPermission('delete any ' . $type . ' content') || $account
-            ->hasPermission('delete own ' . $type . ' content') && $account
-            ->id() == $node->getOwnerId()) &&
-        !empty($node_access) &&
-        !empty($user_access)
-      ) {
-        $node_access = array_column($node_access, 'target_id');
-        $user_access = array_column($user_access, 'target_id');
-        // Check if user is assigned to anyone of the access tags node has.
-        $access = array_intersect($user_access, $node_access);
-        if (is_array($access) && !empty($access)) {
-          return AccessResult::allowed();
-        }
-      }
-      return AccessResult::forbidden();
+      // Check user has tagged terms and delete entity permissions.
+      return _access_by_field_has_permissions($account, $entity, 'delete', $user_access, $field_name);
   }
+}
+
+/**
+ * Check user has access to entity.
+ */
+function _access_by_field_has_permissions($account, $entity, $op, $user_access, $field_name) {
+  $allowed = FALSE;
+  // Get tag terms node is tagged with.
+  $entity_access = $entity->{$field_name}->getValue();
+  // Get entity bundle.
+  $type = $entity->bundle();
+  $bundle = $entity->getEntityTypeId();
+  if ($bundle == 'node') {
+    if (($account->hasPermission($op . ' any ' . $type . ' content') ||
+        ($account->hasPermission($op . ' own ' . $type . ' content') &&
+        $account->id() == $entity->getOwnerId()))
+    ) {
+      $allowed = TRUE;
+    }
+  }
+  elseif ($bundle == 'taxonomy_term') {
+    // edit terms in access_tag.
+    if ($account->hasPermission($op . ' terms in ' . $type)) {
+      $allowed = TRUE;
+    }
+  }
+
+  if ($allowed) {
+    $entity_access = array_column($entity_access, 'target_id');
+    // Check if user is assigned to anyone of the access tags node has.
+    $access = array_intersect($user_access, $entity_access);
+    if (is_array($access) && !empty($access)) {
+      return AccessResult::allowed();
+    }
+  }
+  return AccessResult::forbidden();
 }
