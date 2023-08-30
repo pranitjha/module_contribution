@@ -4,12 +4,12 @@ access_by_field.admin_config_abf:
   parent: system.admin_config_content
   route_name: access_by_field.admin_config_abf
   weight: 100
-access_by_field.content_configuration:
-  title: 'Content Type Fields Mapping'
-  route_name: access_by_field.content_configuration
-  parent: access_by_field.admin_config_abf
-  description: 'Configure fields mapping for each content types.'
-  weight: 70
+#access_by_field.content_configuration:
+#  title: 'Content Type Fields Mapping'
+#  route_name: access_by_field.content_configuration
+#  parent: access_by_field.admin_config_abf
+#  description: 'Configure fields mapping for each content types.'
+#  weight: 70
 access_by_field.mapping_dashboard:
   title: 'Mapping Dashboard'
   route_name: access_by_field.mapping_dashboard

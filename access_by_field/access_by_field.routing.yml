@@ -6,15 +6,15 @@ access_by_field.admin_config_abf:
   requirements:
     _permission: 'access administration pages'
 
-access_by_field.content_configuration:
-  path: '/admin/config/access-by-field/content-configuration'
-  defaults:
-    _controller: '\Drupal\access_by_field\Controller\ContentConfigController::contentMappingList'
-    _title: 'Content Mapping Configuration'
-  requirements:
-    _permission: 'access administration pages'
-  options:
-    _admin_route: TRUE
+#access_by_field.content_configuration:
+#  path: '/admin/config/access-by-field/content-configuration'
+#  defaults:
+#    _controller: '\Drupal\access_by_field\Controller\ContentConfigController::contentMappingList'
+#    _title: 'Content Mapping Configuration'
+#  requirements:
+#    _permission: 'access administration pages'
+#  options:
+#    _admin_route: TRUE
 
 access_by_field.add_field_mapping:
   path: '/admin/config/access-by-field/fields-mapping'
