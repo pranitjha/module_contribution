@@ -10,6 +10,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Class AbfFieldsMappingForm.
@@ -36,6 +37,13 @@ class AbfFieldsMappingForm extends ConfigFormBase {
   protected $entityTypeBundleInfo;
 
   /**
+   * The current request.
+   *
+   * @var \Symfony\Component\HttpFoundation\Request
+   */
+  protected $request;
+
+  /**
    * AbfFieldsMappingForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -47,10 +55,12 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    */
   public function __construct(ConfigFactoryInterface $configFactory,
     EntityFieldManagerInterface $entity_field_manager,
-    EntityTypeBundleInfoInterface $entity_type_bundle_info) {
+    EntityTypeBundleInfoInterface $entity_type_bundle_info,
+    Request $request) {
     parent::__construct($configFactory);
     $this->entityFieldManager = $entity_field_manager;
     $this->entityTypeBundleInfo = $entity_type_bundle_info;
+    $this->request = $request;
   }
 
   /**
@@ -61,6 +71,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('entity_field.manager'),
       $container->get('entity_type.bundle.info'),
+      $container->get('request_stack')->getCurrentRequest(),
     );
   }
 
@@ -86,12 +97,25 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    * @return array
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    // Build form for managing entity fields.
+    // Getting data from configuration for setting default value of each field.
+    // Some of the configs are mapped directly so skip the process if data is not an array.
+    $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
+    if (!is_array($mapping_data)) {
+      return;
+    }
+    $type = $this->request->query->get('type');
+    $bundle = $this->request->query->get('bundle');
+    // Build form for managing entity fields and mapping.
     $form['mapping_label'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Mapping Label'),
+      '#default_value' => !empty($type) ? $mapping_data[$bundle]['mapping_label'] : '',
       '#required' => TRUE,
     ];
+    // Allow user to select entity type for which the restrictions are needed.
+    // Entities that support the mapping are Content Type, Taxonomy & Media.
+    // When user selects an entity type, a form loads with  a set of fields
+    // to capture the mapping information for an entity.
     $form['entity_type'] = [
       '#type' => 'select',
       '#title' => $this->t('Entity Type'),
@@ -100,59 +124,78 @@ class AbfFieldsMappingForm extends ConfigFormBase {
         'media' => 'Media Type',
         'taxonomy_term' => 'Vocabulary'
       ],
+      '#default_value' => !empty($type) ? $type : '--none--',
       '#empty_option' => $this->t('- Select an entity type -'),
       '#ajax' => [
         'callback' => '::entityTypeCallback',
         'wrapper' => 'entity-type-container',
         'event' => 'change',
-        ]
+        ],
+      '#disabled' => !empty($type),
     ];
 
+    // Check if user has selected an entity type. If not, get value set in query.
+    if ($this->request->isXmlHttpRequest()) {
+      $type = $form_state->getValue('entity_type');
+    }
+    // Container to appear when entity type field has data.
     $form['entity_type_container'] = [
       '#type' => 'container',
       '#attributes' => ['id' => 'entity-type-container'],
     ];
-
-    $entity_type = $form_state->getValue('entity_type');
-    if (isset($entity_type)) {
+    // Keeping the field disabled on edit form so that user does not make any
+    // update in this field.
+    if (isset($type)) {
       $form['entity_type_container']['entity_bundle'] = [
         '#type' => 'select',
         '#title' => $this->t('Entity Bundle'),
         '#required' => TRUE,
-        '#options' => $this->getEntityBundles($form_state->getValue('entity_type')),
+        '#options' => $this->getEntityBundles($type),
+        '#default_value' => !empty($bundle) ? $bundle : '--none--',
         '#empty_option' => $this->t('- Select entity bundle -'),
         '#ajax' => [
           'callback' => '::entityBundleCallback',
           'wrapper' => 'entity-bundle-container',
           'event' => 'change',
-        ]
+        ],
+        '#disabled' => !($this->request->isXmlHttpRequest()),
       ];
     }
 
+    // The selection of entity bundle triggers another container that
+    // displays field list & access level.
     $form['entity_bundle_container'] = [
       '#type' => 'container',
       '#attributes' => ['id' => 'entity-bundle-container'],
     ];
-    $entity_bundle = $form_state->getValue('entity_bundle');
-    if(isset($entity_bundle)) {
+    // Again if the bundle is selected by user, the value should be taken from
+    // form state to capture the data on Add mapping.
+    $bundle = $this->request->isXmlHttpRequest() ? $form_state->getValue('entity_bundle') : $bundle;
+    if(isset($bundle)) {
       // Getting content label to be displayed on form.
-      $bundle_info = $this->entityTypeBundleInfo->getBundleInfo($entity_type);
-
+      $bundle_info = $this->entityTypeBundleInfo->getBundleInfo($type);
+      // Check is some data is previously set for same set of entity type & bundle.
+      // If yes, map them as default value to each field.
       $form['entity_bundle_container']['entity_field'] = [
         '#type' => 'select',
-        '#title' => $this->t($bundle_info[$entity_bundle]['label'] . ' Fields'),
+        '#title' => $this->t($bundle_info[$bundle]['label'] . ' Fields'),
         '#required' => TRUE,
-        '#options' => $this->getEntityFields($entity_type, $entity_bundle),
+        '#default_value' => !empty($type) ? $mapping_data[$bundle]['entity_field'] : '--none--',
+        '#options' => $this->getEntityFields($type, $bundle),
       ];
       $form['entity_bundle_container']['user_field'] = [
         '#type' => 'select',
         '#title' => $this->t('User Account Fields'),
+        '#default_value' => !empty($type) ? $mapping_data[$bundle]['user_field'] : '--none--',
         '#required' => TRUE,
         '#options' => $this->getEntityFields('user', 'user'),
       ];
+      // The access level field decide what is the level of restriction we
+      // need for a content type & user role.
       $form['entity_bundle_container']['access_level'] = [
         '#type' => 'checkboxes',
         '#title' => $this->t('Access level'),
+        '#default_value' => !empty($type) ? $mapping_data[$bundle]['access_level'] : '--none--',
         '#required' => TRUE,
         '#options' => [
           'create' => 'Create',
@@ -173,6 +216,9 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    * @return mixed
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    // Preparing the config data in a format that each entity will have
+    // its mapping info that consists of label, entity type, access level,
+    // entity & user fields.
     $entity = $form_state->getValue('entity_bundle');
     $mapping_data = [
       'entity_type' => $form_state->getValue('entity_type'),
@@ -187,13 +233,15 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       ->set('entity_bundle',$form_state->getValue('entity_bundle'))
       ->save();
 
+    // With each form submission, user will get redirected to the dashboard.
     $url = Url::fromRoute('access_by_field.mapping_dashboard');
     $form_state->setRedirectUrl($url);
     parent::submitForm($form, $form_state);
-
   }
 
   /**
+   * Handles the AJAX request to load entity type container.
+   *
    * @param $form
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *
@@ -204,6 +252,8 @@ class AbfFieldsMappingForm extends ConfigFormBase {
   }
 
   /**
+   * Handles the AJAX request to load entity bundle container.
+   *
    * @param $form
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *

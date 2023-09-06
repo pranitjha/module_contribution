@@ -74,14 +74,17 @@ class MappingDashboardController extends ControllerBase {
     // Get raw data from mapping configuration.
     $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
     foreach ($mapping_data as $bundle => $data) {
-      // Field mapping URL for edit link.
-      $edit_link = Url::fromRoute('access_by_field.add_field_mapping', ['type' => $bundle], ['absolute' => TRUE]);
-      // Get permission levels set in the configuration.
       if (!is_array($data)) {
         continue;
       }
+      // Field mapping URL for edit link.
+      $edit_link = Url::fromRoute('access_by_field.add_field_mapping',
+        ['type' => $data['entity_type'], 'bundle' => $bundle],
+        ['absolute' => TRUE]
+      );
       // Get node type label.
       $label = $this->entityTypeBundleInfo->getBundleInfo($data['entity_type'])[$bundle]['label'];
+      // Get permission levels set in the configuration.
       $access_level_data = array_filter($data['access_level'], 'ucfirst');
 
       // Table rows to render content type, field mapped, access level & edit link.
