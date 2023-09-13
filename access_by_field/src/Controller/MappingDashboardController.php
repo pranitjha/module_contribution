@@ -78,9 +78,8 @@ class MappingDashboardController extends ControllerBase {
         continue;
       }
       // Field mapping URL for edit link.
-      $edit_link = Url::fromRoute('access_by_field.add_field_mapping',
-        ['type' => $data['entity_type'], 'bundle' => $bundle],
-        ['absolute' => TRUE]
+      $edit_link = Url::fromRoute('access_by_field.add_field_mapping', [
+        'type' => $data['entity_type'], 'bundle' => $bundle]
       );
       // Get node type label.
       $label = $this->entityTypeBundleInfo->getBundleInfo($data['entity_type'])[$bundle]['label'];

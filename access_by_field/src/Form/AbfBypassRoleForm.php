@@ -70,7 +70,7 @@ class AbfBypassRoleForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('abf_bypass_roles.settings');
     foreach ($this->roleStorage->loadMultiple() as $rid => $role) {
-      if ($role->id() !== 'anonymous') {
+      if ($role->id() !== 'anonymous' && $role->id() !== 'administrator') {
         $roles[$role->id()] = $role->label();
       }
     }
