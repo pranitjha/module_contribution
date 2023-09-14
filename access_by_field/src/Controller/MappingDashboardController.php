@@ -69,6 +69,7 @@ class MappingDashboardController extends ControllerBase {
       'access_level' => $this->t('Access Level'),
       'operation' => $this->t('Operation'),
     ];
+    $rows = [];
 
     // Table rows.
     // Get raw data from mapping configuration.
