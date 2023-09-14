@@ -2,15 +2,18 @@
 
 namespace Drupal\access_by_field\Form;
 
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
+use Drupal\Core\Render\Markup;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Class AbfFieldsMappingForm.
@@ -37,13 +40,6 @@ class AbfFieldsMappingForm extends ConfigFormBase {
   protected $entityTypeBundleInfo;
 
   /**
-   * The current request.
-   *
-   * @var \Symfony\Component\HttpFoundation\Request
-   */
-  protected $request;
-
-  /**
    * AbfFieldsMappingForm constructor.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -53,14 +49,10 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
    *   The entity type bundle service.
    */
-  public function __construct(ConfigFactoryInterface $configFactory,
-    EntityFieldManagerInterface $entity_field_manager,
-    EntityTypeBundleInfoInterface $entity_type_bundle_info,
-    Request $request) {
+  public function __construct(ConfigFactoryInterface $configFactory, EntityFieldManagerInterface $entity_field_manager, EntityTypeBundleInfoInterface $entity_type_bundle_info) {
     parent::__construct($configFactory);
     $this->entityFieldManager = $entity_field_manager;
     $this->entityTypeBundleInfo = $entity_type_bundle_info;
-    $this->request = $request;
   }
 
   /**
@@ -71,7 +63,6 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('entity_field.manager'),
       $container->get('entity_type.bundle.info'),
-      $container->get('request_stack')->getCurrentRequest(),
     );
   }
 
@@ -90,32 +81,28 @@ class AbfFieldsMappingForm extends ConfigFormBase {
   public function getFormId() {
     return 'abf_fields_mapping_settings';
   }
+
   /**
-   * @param array $form
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *
-   * @return array
+   * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
+  public function buildForm(array $form, FormStateInterface $form_state, $type = NULL, $bundle = NULL) {
     // Getting data from configuration for setting default value of each field.
     // Some of the configs are mapped directly so skip the process if data is not an array.
     $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
     if (!is_array($mapping_data)) {
       return;
     }
-    $type = $this->request->query->get('type');
-    $bundle = $this->request->query->get('bundle');
     // Build form for managing entity fields and mapping.
     $form['mapping_label'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Mapping Label'),
-      '#default_value' => !empty($type) ? $mapping_data[$bundle]['mapping_label'] : '',
+      '#default_value' => (!empty($type) && !empty($bundle)) ? $mapping_data[$bundle]['mapping_label'] : '',
       '#required' => TRUE,
     ];
     // Allow user to select entity type for which the restrictions are needed.
     // Entities that support the mapping are Content Type, Taxonomy & Media.
-    // When user selects an entity type, a form loads with  a set of fields
-    // to capture the mapping information for an entity.
+    // When user selects an entity type, a form loads with a set of fields
+    // to capture the mapping information for that entity.
     $form['entity_type'] = [
       '#type' => 'select',
       '#title' => $this->t('Entity Type'),
@@ -131,26 +118,26 @@ class AbfFieldsMappingForm extends ConfigFormBase {
         'wrapper' => 'entity-type-container',
         'event' => 'change',
         ],
-      '#disabled' => !empty($type),
+      '#disabled' => (!empty($type) && !empty($bundle)), // Keep it disabled on edit form.
     ];
 
-    // Check if user has selected an entity type. If not, get value set in query.
-    if ($this->request->isXmlHttpRequest()) {
-      $type = $form_state->getValue('entity_type');
-    }
+    // Check if user has selected an entity type. If not, get value from URL.
+    $entity_type_input = $form_state->getValue('entity_type');
+    $entity_type = !empty($entity_type_input) ? $entity_type_input : $type;
+
     // Container to appear when entity type field has data.
     $form['entity_type_container'] = [
       '#type' => 'container',
       '#attributes' => ['id' => 'entity-type-container'],
     ];
-    // Keeping the field disabled on edit form so that user does not make any
-    // update in this field.
-    if (isset($type)) {
+    // Keeping the field disabled on edit form so that user does not update
+    // this field.
+    if (isset($entity_type)) {
       $form['entity_type_container']['entity_bundle'] = [
         '#type' => 'select',
         '#title' => $this->t('Entity Bundle'),
         '#required' => TRUE,
-        '#options' => $this->getEntityBundles($type),
+        '#options' => $this->getEntityBundles($entity_type),
         '#default_value' => !empty($bundle) ? $bundle : '--none--',
         '#empty_option' => $this->t('- Select entity bundle -'),
         '#ajax' => [
@@ -158,7 +145,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
           'wrapper' => 'entity-bundle-container',
           'event' => 'change',
         ],
-        '#disabled' => !($this->request->isXmlHttpRequest()),
+        '#disabled' => (!empty($type) && !empty($bundle)),
       ];
     }
 
@@ -170,23 +157,25 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     ];
     // Again if the bundle is selected by user, the value should be taken from
     // form state to capture the data on Add mapping.
-    $bundle = $this->request->isXmlHttpRequest() ? $form_state->getValue('entity_bundle') : $bundle;
-    if(isset($bundle)) {
+    $entity_bundle_input = $form_state->getValue('entity_bundle');
+    $entity_bundle = !empty($entity_bundle_input) ? $entity_bundle_input : $bundle;
+
+    if(isset($entity_bundle)) {
       // Getting content label to be displayed on form.
-      $bundle_info = $this->entityTypeBundleInfo->getBundleInfo($type);
+      $bundle_info = $this->entityTypeBundleInfo->getBundleInfo($entity_type);
       // Check is some data is previously set for same set of entity type & bundle.
       // If yes, map them as default value to each field.
       $form['entity_bundle_container']['entity_field'] = [
         '#type' => 'select',
-        '#title' => $this->t($bundle_info[$bundle]['label'] . ' Fields'),
+        '#title' => $this->t($bundle_info[$entity_bundle]['label'] . ' Fields'),
         '#required' => TRUE,
-        '#default_value' => !empty($type) ? $mapping_data[$bundle]['entity_field'] : '--none--',
-        '#options' => $this->getEntityFields($type, $bundle),
+        '#default_value' => $mapping_data[$entity_bundle]['entity_field'],
+        '#options' => $this->getEntityFields($entity_type, $entity_bundle),
       ];
       $form['entity_bundle_container']['user_field'] = [
         '#type' => 'select',
         '#title' => $this->t('User Account Fields'),
-        '#default_value' => !empty($type) ? $mapping_data[$bundle]['user_field'] : '--none--',
+        '#default_value' => $mapping_data[$entity_bundle]['user_field'],
         '#required' => TRUE,
         '#options' => $this->getEntityFields('user', 'user'),
       ];
@@ -195,7 +184,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       $form['entity_bundle_container']['access_level'] = [
         '#type' => 'checkboxes',
         '#title' => $this->t('Access level'),
-        '#default_value' => !empty($type) ? $mapping_data[$bundle]['access_level'] : '--none--',
+        '#default_value' => $mapping_data[$entity_bundle]['access_level'],
         '#required' => TRUE,
         '#options' => [
           'create' => 'Create',
@@ -210,10 +199,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
   }
 
   /**
-   * @param array $form
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *
-   * @return mixed
+   * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Preparing the config data in a format that each entity will have
@@ -236,6 +222,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     // With each form submission, user will get redirected to the dashboard.
     $url = Url::fromRoute('access_by_field.mapping_dashboard');
     $form_state->setRedirectUrl($url);
+
     parent::submitForm($form, $form_state);
   }
 
@@ -260,7 +247,48 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    * @return mixed
    */
   public function entityBundleCallback($form, FormStateInterface $form_state) {
-    return $form['entity_bundle_container'];
+    $ajax_response = new AjaxResponse();
+    // Skip if mapping data is not an array.
+    $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
+    if (!is_array($mapping_data)) {
+      return;
+    }
+    $selected_entity = $form_state->getValue('entity_type');
+    $selected_bundle = $form_state->getValue('entity_bundle');
+    // Display message if an entity does not have supported field.
+    if (empty($this->getEntityFields($selected_entity ,$selected_bundle))) {
+      $message = $this->t('The selected bundle does not have any supported field, please add one.');
+      $warning = [
+        '#type' => 'markup',
+        '#markup' => Markup::create("<div class='messages messages--warning'>{$message}</div>"),
+      ];
+      $ajax_response->addCommand(new HtmlCommand('#entity-bundle-container', $warning));
+
+      return $ajax_response;
+    }
+    // If mapping for a bundle exits, ask user to update existing config.
+    elseif(array_key_exists($selected_bundle, $mapping_data)) {
+      // Get route for existing mapping based on selected entity type & bundle.
+      $existing_route = Url::fromRoute('access_by_field.add_field_mapping', [
+          'type' => $selected_entity,
+          'bundle' => $selected_bundle
+        ]);
+      $link = Link::fromTextAndUrl($this->t('Existing Field Mapping'), $existing_route);
+      $message = $this->t('Mapping exists for ' . $selected_bundle .  '. Visit @link if you need to override it.',
+        ['@link' => $link->toString()]
+      );
+      $warning = [
+        '#type' => 'markup',
+        '#markup' => Markup::create("<div class='messages messages--warning'>{$message}</div>"),
+      ];
+      $ajax_response->addCommand(new HtmlCommand('#entity-bundle-container', $warning));
+
+      return $ajax_response;
+    }
+    // For a new mapping, load container.
+    else {
+      return $form['entity_bundle_container'];
+    }
   }
 
   /**

@@ -20,8 +20,6 @@ function access_by_field_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<p>' . t('This module allows the additional access restrictions based on a value of a common field between user and entity.') . '</p>';
       $output .= '<h3>' . t('Uses') . '</h3>';
       $output .= '<dl>';
-      $output .= '<dt>' . t('Content Mapping Configuration') . '</dt>';
-      $output .= '<dd>' . t('This page lists down content types with a configure link that takes to the fields mapping form page.') . '</dd>';
       $output .= '<dt>' . t('Fields Mappings') . '</dt>';
       $output .= '<dd>' . t('This form takes care of mapping between Entity & User fields.') . '</dd>';
       $output .= '<dt>' . t('Bypass Roles') . '</dt>';
