@@ -169,13 +169,13 @@ class AbfFieldsMappingForm extends ConfigFormBase {
         '#type' => 'select',
         '#title' => $this->t($bundle_info[$entity_bundle]['label'] . ' Fields'),
         '#required' => TRUE,
-        '#default_value' => $mapping_data[$entity_bundle]['entity_field'],
+        '#default_value' => isset($mapping_data[$entity_bundle]) ? $mapping_data[$entity_bundle]['entity_field'] : '',
         '#options' => $this->getEntityFields($entity_type, $entity_bundle),
       ];
       $form['entity_bundle_container']['user_field'] = [
         '#type' => 'select',
         '#title' => $this->t('User Account Fields'),
-        '#default_value' => $mapping_data[$entity_bundle]['user_field'],
+        '#default_value' => isset($mapping_data[$entity_bundle]) ? $mapping_data[$entity_bundle]['user_field'] : '',
         '#required' => TRUE,
         '#options' => $this->getEntityFields('user', 'user'),
       ];
@@ -184,7 +184,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       $form['entity_bundle_container']['access_level'] = [
         '#type' => 'checkboxes',
         '#title' => $this->t('Access level'),
-        '#default_value' => $mapping_data[$entity_bundle]['access_level'],
+        '#default_value' => isset($mapping_data[$entity_bundle]) ? $mapping_data[$entity_bundle]['access_level'] : [],
         '#required' => TRUE,
         '#options' => [
           'create' => 'Create',
@@ -301,11 +301,11 @@ class AbfFieldsMappingForm extends ConfigFormBase {
   protected function getEntityFields($entity ,$bundle): array {
     $field_definitions = $this->entityFieldManager->getFieldDefinitions($entity, $bundle);
     $bundle_fields = [];
-    foreach ( $field_definitions as $field_name => $field_definition) {
+    foreach ($field_definitions as $field_name => $field_definition) {
       // Get list of fields of type entity_reference and boolean.
       if (!empty($field_definition->getTargetBundle()) && ($field_definition->getType() === 'boolean'
           || $field_definition->getType() === 'entity_reference')) {
-        $bundle_fields[$field_name] = $field_definition->label();
+        $bundle_fields[$field_name] = $field_definition->getLabel();
       }
     }
 

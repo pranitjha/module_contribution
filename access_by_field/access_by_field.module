@@ -53,12 +53,15 @@ function _access_by_field_override_permissions(EntityInterface $entity, $op, Acc
   // Load user entity & mapping configuration.
   $user = \Drupal::entityTypeManager()->getStorage('user')->load($account->id());
   $config = \Drupal::config('abf_fields_mapping.settings')->getRawData();
+  if (!isset($config[$entity->bundle()])) {
+    return;
+  }
   $current_mapping = $config[$entity->bundle()];
-
   // Define the field name for which mapping will be done.
-  $field_name = $current_mapping['entity_field'];
+  $field_name = $current_mapping['user_field'];
   // Get user tag terms.
   $user_access = $user->{$field_name}->getValue();
+
   // Skip the process if:
   // 1. Field mapping configs are not set for the entity type.
   // 2. Operation alter is not required for the current entity.
