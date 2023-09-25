@@ -89,8 +89,12 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     // Getting data from configuration for setting default value of each field.
     // Some of the configs are mapped directly so skip the process if data is not an array.
     $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
-    if (!is_array($mapping_data)) {
-      return;
+    if ((!empty($type) && !empty($bundle)) && !array_key_exists($bundle, $mapping_data)) {
+      $warning = $this->t('Selected bundle does not have any mapping data.');
+      return [
+        '#type' => 'markup',
+        '#markup' => Markup::create("<div class='messages messages--warning'>{$warning}</div>"),
+      ];
     }
     // Build form for managing entity fields and mapping.
     $form['mapping_label'] = [
@@ -160,7 +164,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     $entity_bundle_input = $form_state->getValue('entity_bundle');
     $entity_bundle = !empty($entity_bundle_input) ? $entity_bundle_input : $bundle;
 
-    if(isset($entity_bundle)) {
+    if (isset($entity_bundle)) {
       // Getting content label to be displayed on form.
       $bundle_info = $this->entityTypeBundleInfo->getBundleInfo($entity_type);
       // Check is some data is previously set for same set of entity type & bundle.
@@ -193,6 +197,17 @@ class AbfFieldsMappingForm extends ConfigFormBase {
           'delete' => 'Delete',
         ],
       ];
+      // Delete config.
+      $delete_url = Url::fromRoute('access_by_field.delete_field_mapping', ['bundle' => $entity_bundle]);
+      $form['actions']['delete'] = [
+        '#type' => 'link',
+        '#title' => $this->t('Delete'),
+        '#url' => $delete_url,
+        '#weight' => 100,
+        '#attributes' => [
+          'class' => ['button', 'button--danger'],
+        ],
+      ];
     }
 
     return parent::buildForm($form, $form_state);
@@ -215,8 +230,6 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     ];
     $this->config('abf_fields_mapping.settings')
       ->set($entity, $mapping_data)
-      ->set('entity_type',$form_state->getValue('entity_type'))
-      ->set('entity_bundle',$form_state->getValue('entity_bundle'))
       ->save();
 
     // With each form submission, user will get redirected to the dashboard.
@@ -267,7 +280,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       return $ajax_response;
     }
     // If mapping for a bundle exits, ask user to update existing config.
-    elseif(array_key_exists($selected_bundle, $mapping_data)) {
+    elseif (array_key_exists($selected_bundle, $mapping_data)) {
       // Get route for existing mapping based on selected entity type & bundle.
       $existing_route = Url::fromRoute('access_by_field.add_field_mapping', [
           'type' => $selected_entity,

@@ -10,9 +10,19 @@ access_by_field.add_field_mapping:
   path: '/admin/config/access-by-field/fields-mapping/{type}/{bundle}'
   defaults:
     _form: '\Drupal\access_by_field\Form\AbfFieldsMappingForm'
-    _title: 'Add Fields Mappings'
+    _title: 'Manage Fields Mappings'
     type: null
     bundle: null
+  requirements:
+    _permission: 'access abf mapping settings page'
+  options:
+    _admin_route: TRUE
+
+access_by_field.delete_field_mapping:
+  path: '/admin/config/access-by-field/fields-mapping/{bundle}/delete'
+  defaults:
+    _form: '\Drupal\access_by_field\Form\AbfMappingDeleteForm'
+    _title: 'Delete Field Mapping'
   requirements:
     _permission: 'access abf mapping settings page'
   options:
