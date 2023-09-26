@@ -10,7 +10,6 @@ namespace Drupal\access_by_field\Controller;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Link;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Url;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
@@ -130,18 +129,12 @@ class MappingDashboardController extends ControllerBase {
       ];
     }
 
-    // If no mappings exist, put a message with mapping config link.
-    $url = Url::fromUri('base:/admin/config/access-by-field/content-configuration');
-    $link = Link::fromTextAndUrl($this->t('Content Type Fields Mapping'), $url);
-
     // Return the final data set.
     return [
       '#type' => 'table',
       '#header' => $header,
       '#rows' => $rows,
-      '#empty' => $this->t('No mappings found for any content type. Visit @link page to create one.',
-        ['@link' => $link->toString()]
-      ),
+      '#empty' => $this->t('No mappings found for any content type. Go to fields mapping to create one.'),
     ];
   }
 }

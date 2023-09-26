@@ -2,9 +2,13 @@
 
 namespace Drupal\access_by_field\Form;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class AbfMappingDeleteForm extends ConfirmFormBase {
 
@@ -15,6 +19,31 @@ class AbfMappingDeleteForm extends ConfirmFormBase {
    */
   protected $bundle;
 
+  /**
+   * The configuration factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * AbfMappingDeleteForm constructor.
+   *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The factory for configuration objects.
+   */
+  public function __construct(ConfigFactoryInterface $config_factory) {
+    $this->configFactory = $config_factory;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory')
+    );
+  }
 
   /**
    * @inheritDoc
@@ -53,7 +82,7 @@ class AbfMappingDeleteForm extends ConfirmFormBase {
    * @inheritDoc
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $config = \Drupal::service('config.factory')->getEditable('abf_fields_mapping.settings');
+    $config = $this->configFactory->getEditable('abf_fields_mapping.settings');
     $config->clear($this->bundle)->save();
 
     $form_state->setRedirectUrl($this->getCancelUrl());

@@ -87,14 +87,11 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state, $type = NULL, $bundle = NULL) {
     // Getting data from configuration for setting default value of each field.
-    // Some of the configs are mapped directly so skip the process if data is not an array.
+    // If bundle and type have some value but relevant mapping does not exist,
+    // return warning on the screen.
     $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
     if ((!empty($type) && !empty($bundle)) && !array_key_exists($bundle, $mapping_data)) {
-      $warning = $this->t('Selected bundle does not have any mapping data.');
-      return [
-        '#type' => 'markup',
-        '#markup' => Markup::create("<div class='messages messages--warning'>{$warning}</div>"),
-      ];
+      return $this->setWarning($this->t('Selected bundle does not have any mapping data.'));
     }
     // Build form for managing entity fields and mapping.
     $form['mapping_label'] = [
@@ -248,7 +245,18 @@ class AbfFieldsMappingForm extends ConfigFormBase {
    * @return mixed
    */
   public function entityTypeCallback($form, FormStateInterface $form_state) {
-    return $form['entity_type_container'];
+    $ajax_response = new AjaxResponse();
+    $selected_entity = $form_state->getValue('entity_type');
+    if (empty($this->getEntityBundles($selected_entity))) {
+      $message = $this->t('No bundles found for selected entity type.');
+      $warning = $this->setWarning($message);
+      $ajax_response->addCommand(new HtmlCommand('#entity-type-container', $warning));
+
+      return $ajax_response;
+    }
+    else {
+      return $form['entity_type_container'];
+    }
   }
 
   /**
@@ -263,18 +271,12 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     $ajax_response = new AjaxResponse();
     // Skip if mapping data is not an array.
     $mapping_data = $this->config('abf_fields_mapping.settings')->getRawData();
-    if (!is_array($mapping_data)) {
-      return;
-    }
     $selected_entity = $form_state->getValue('entity_type');
     $selected_bundle = $form_state->getValue('entity_bundle');
     // Display message if an entity does not have supported field.
     if (empty($this->getEntityFields($selected_entity ,$selected_bundle))) {
       $message = $this->t('The selected bundle does not have any supported field, please add one.');
-      $warning = [
-        '#type' => 'markup',
-        '#markup' => Markup::create("<div class='messages messages--warning'>{$message}</div>"),
-      ];
+      $warning = $this->setWarning($message);
       $ajax_response->addCommand(new HtmlCommand('#entity-bundle-container', $warning));
 
       return $ajax_response;
@@ -290,10 +292,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       $message = $this->t('Mapping exists for ' . $selected_bundle .  '. Visit @link if you need to override it.',
         ['@link' => $link->toString()]
       );
-      $warning = [
-        '#type' => 'markup',
-        '#markup' => Markup::create("<div class='messages messages--warning'>{$message}</div>"),
-      ];
+      $warning = $this->setWarning($message);
       $ajax_response->addCommand(new HtmlCommand('#entity-bundle-container', $warning));
 
       return $ajax_response;
@@ -339,5 +338,18 @@ class AbfFieldsMappingForm extends ConfigFormBase {
     }
 
     return $bundles;
+  }
+
+  /**
+   * Creates markup for warning message.
+   * @param $message
+   *
+   * @return array
+   */
+  protected function setWarning($message) {
+    return [
+      '#type' => 'markup',
+      '#markup' => Markup::create("<div class='messages messages--warning'>{$message}</div>"),
+    ];
   }
 }
