@@ -1,8 +1,9 @@
-This module provides additional access restrictions based on the value of a common field between user and entity. If both the fields hold same value, the user will have access to operations its role has opted. For now, only Edit and Delete operations are associated with with this module.
+This module provides additional access restrictions based on the value of a common field between user and entity. If both the fields hold same value, the user will have access to operations its role has opted. View, Edit and Delete operations can be managed for Entities (Content and Taxonomy).
 
 Allowed field types:
 1. Entity Reference that includes Term & Content.
 2. Boolean
+3. Select
 
 About module configuration:
 1. The module provides two forms; for adding field mappings & managing role access.
