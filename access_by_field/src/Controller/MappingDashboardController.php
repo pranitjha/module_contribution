@@ -86,7 +86,7 @@ class MappingDashboardController extends ControllerBase {
       'entity_bundle' => $this->t('Bundle'),
       'entity_field' => $this->t('Entity Field'),
       'user_field' => $this->t('User Field'),
-      'access_level' => $this->t('Access Level'),
+      'access_level' => $this->t('Revoked Access'),
       'operations' => $this->t('Operations'),
     ];
     $rows = [];
