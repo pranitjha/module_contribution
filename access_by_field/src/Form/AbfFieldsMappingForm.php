@@ -183,7 +183,7 @@ class AbfFieldsMappingForm extends ConfigFormBase {
       // need for a content type & user role.
       $form['entity_bundle_container']['access_level'] = [
         '#type' => 'checkboxes',
-        '#title' => $this->t('Access level'),
+        '#title' => $this->t('Revoke access'),
         '#default_value' => isset($mapping_data[$entity_bundle]) ? $mapping_data[$entity_bundle]['access_level'] : [],
         '#required' => TRUE,
         '#options' => [

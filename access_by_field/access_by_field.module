@@ -59,16 +59,17 @@ function _access_by_field_override_permissions(EntityInterface $entity, $op, Acc
   }
   $current_mapping = $config[$entity->bundle()];
   // Define the field name for which mapping will be done.
-  $field_name = $current_mapping['user_field'];
+  $user_field = $current_mapping['user_field'];
+  $entity_field = $current_mapping['entity_field'];
   // Get user tag terms.
-  $user_access = $user->{$field_name}->getValue();
+  $user_access = $user->{$user_field}->getValue();
 
   // Skip the process if:
   // 1. Field mapping configs are not set for the entity type.
   // 2. Operation alter is not required for the current entity.
   // 3. The user & current entity do not have the fields mapped.
   if (!isset($current_mapping) || !in_array($op, array_filter($current_mapping['access_level']))
-    || empty($user_access) || !$entity->hasField($field_name)) {
+    || empty($user_access) || !$entity->hasField($entity_field)) {
     return;
   }
 
@@ -92,7 +93,7 @@ function _access_by_field_override_permissions(EntityInterface $entity, $op, Acc
   // Check if node has field access tag.
 
   // Get tagged fields values.
-  $entity_access = $entity->{$field_name}->getValue();
+  $entity_access = $entity->{$entity_field}->getValue();
   if (empty($entity_access)) {
     // If entity doesn't have any access tags, skip.
     return;
@@ -101,7 +102,7 @@ function _access_by_field_override_permissions(EntityInterface $entity, $op, Acc
     case 'view':
     case 'view all revisions':
       $entity_access = array_column($entity_access, 'target_id');
-      //Check if user is assigned to anyone of the access tag node has
+      // Check if user is assigned to anyone of the access tag node has
       $access = array_intersect($user_access, $entity_access);
       if (!empty($access)) {
         return AccessResult::allowed();
@@ -110,10 +111,10 @@ function _access_by_field_override_permissions(EntityInterface $entity, $op, Acc
 
     case 'update':
       // Check user has tagged terms and edit entity permissions.
-      return _access_by_field_has_permissions($account, $entity, 'edit', $user_access, $field_name);
+      return _access_by_field_has_permissions($account, $entity, 'edit', $user_access, $entity_field);
     case 'delete':
       // Check user has tagged terms and delete entity permissions.
-      return _access_by_field_has_permissions($account, $entity, 'delete', $user_access, $field_name);
+      return _access_by_field_has_permissions($account, $entity, 'delete', $user_access, $entity_field);
   }
 }
 

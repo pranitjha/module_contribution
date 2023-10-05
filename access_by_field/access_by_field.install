@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the book module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function access_by_field_uninstall() {
+  // Remove configs created by module.
+  \Drupal::configFactory()->getEditable('abf_fields_mapping.settings')->delete();
+  \Drupal::configFactory()->getEditable('abf_bypass_roles.settings')->delete();
+}

@@ -74,12 +74,13 @@ class AbfBypassRoleForm extends ConfigFormBase {
         $roles[$role->id()] = $role->label();
       }
     }
-
+    $data = $config->getRawData();
+    $default_value = !empty($data) ? $config->get('bypassed_roles') : [];
     $form['bypassed_roles'] = [
       '#type' => 'checkboxes',
       '#title' => $this->t('Skip access for roles:'),
       '#description' => $this->t('Roles selected here will have no restriction on access.'),
-      '#default_value' => $config->get('bypassed_roles'),
+      '#default_value' => $default_value,
       '#options' => $roles,
     ];
 
