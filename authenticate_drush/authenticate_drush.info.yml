@@ -1,0 +1,6 @@
+name: Authenticate Drush Commands
+type: module
+description: 'This module authenticates critical drush commands.'
+core_version_requirement: ^9 || ^10
+package: 'Others'
+configure: authenticate_drush.settings

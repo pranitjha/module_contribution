@@ -1,0 +1,9 @@
+authenticate_drush.settings:
+  path: '/admin/config/drush-authenticate'
+  defaults:
+    _form: '\Drupal\authenticate_drush\Form\Settings'
+    _title: 'Authenticate Drush Commands'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
