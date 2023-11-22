@@ -1,0 +1,6 @@
+services:
+  drush_authenticate.commands:
+    class: \Drupal\authenticate_drush\Commands\AuthenticateCommands
+    arguments: ['@config.factory', '@authenticate_drush.drush_user']
+    tags:
+      - { name: drush.command }

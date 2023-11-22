@@ -1,0 +1,7 @@
+services:
+  logger.channel.authenticate_drush:
+    parent: logger.channel_base
+    arguments: [ 'authenticate_drush' ]
+  authenticate_drush.drush_user:
+    class: Drupal\authenticate_drush\AuthenticateDrushUser
+    arguments: ['@user.auth', '@logger.channel.authenticate_drush']
