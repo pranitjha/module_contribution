@@ -68,14 +68,14 @@ class AuthenticateCommands extends DrushCommands {
     // Check if the command is executed via cron.
     // We need to by-pass the security check.
     $ssh_user = shell_exec('who -m');
-    if (empty($ssh_user)) {
+    if (php_sapi_name() == 'cli' && !isset($_SERVER['TERM'])) {
       return;
     }
     // Executed drush command.
     $command = $commandData->annotationData()->get('command');
     $this->getLogger('drush_authenticate')->info('Command @command executed by SSH User: @user', [
       '@command' => $command,
-      '@user' => shell_exec('who -m'),
+      '@user' => $ssh_user,
     ]);
 
     // Get critical drush commands from settings.

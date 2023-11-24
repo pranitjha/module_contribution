@@ -32,7 +32,7 @@ class Settings extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
-    $description = $this->t('One configuration name per line.<br />
+    $description = $this->t('One command name per line.<br />
     Examples: <ul>
     <li>config:set</li>
     <li>config:delete</li>
